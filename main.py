@@ -9,25 +9,33 @@ MAGENTA = '\033[45m'
 CYAN = '\033[46m'
 WHITE = '\033[47m'
 
-ZERO = '\033[2;{0}H\033[47m   \033[3;{0}H \033[40m \033[47m \033[4;{0}H \033[40m \033[47m \033[5;{0}H \033[40m \033[47m \033[6;{0}H   '
+SCORES = (
+'\033[2;{0}H\033[47m   \033[3;{0}H \033[40m \033[47m \033[4;{0}H \033[40m \033[47m \033[5;{0}H \033[40m \033[47m \033[6;{0}H   ',
+'\033[2;{0}H\033[40m  \033[47m \033[3;{0}H\033[40m  \033[47m \033[4;{0}H\033[40m  \033[47m \033[5;{0}H\033[40m  \033[47m \033[6;{0}H\033[40m  \033[47m ',
+'\033[2;{0}H\033[47m   \033[3;{0}H\033[47m  \033[40m \033[4;{0}H   \033[5;{0}H \033[40m  \033[6;{0}H\033[47m   ',
+'\033[2;{0}H\033[47m   \033[3;{0}H\033[40m  \033[47m \033[4;{0}H   \033[5;{0}H\033[40m  \033[47m \033[6;{0}H   ',
+'\033[2;{0}H \033[40m \033[47m \033[3;{0}H \033[40m \033[47m \033[3;{0}H   \033[5;{0}H\033[40m  \033[47m \033[6;{0}H\033[40m  \033[47m ',
+'\033[2;{0}H\033[47m   \033[3;{0}H \033[40m  \033[4;{0}H\033[47m   \033[5;{0}H\033[40m  \033[47m \033[6;{0}H   ',
+'',
+'',
+'',
+'',
+'')
 
 WIDTH = 80
 HEIGHT = 20
 
-def clear():
-    write(BLACK)
-    write(WIDTH * HEIGHT * ' ')
+Player0Score = 0
+Player1Score = 0
 
 def cursor(x, y):
     write('\033[' + str(y) + ';' + str(x) + 'H')
 
-def drawNumber(x, number):
-    cursor(x, 2)
-    
-
 with Serial('/dev/ttyAMA0') as cereal:
     write = cereal.write
-    clear()
+    write(BLACK)
+    write(WIDTH * HEIGHT * ' ')
     while True:
-        write(ZERO.format(10))
+        write(SCORES[Player0Score].format(30))
+        write(SCORES[Player1Score].format(48))
         cereal.flush()
