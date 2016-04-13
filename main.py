@@ -1,33 +1,19 @@
 from serial import Serial
 from time import time
 
-BLACK = '\033[40m'
-RED = '\033[41m'
-GREEN = '\033[42m'
-YELLOW = '\033[43m'
-BLUE = '\033[44m'
-MAGENTA = '\033[45m'
-CYAN = '\033[46m'
-WHITE = '\033[47m'
+BLACK = 0
+NET = RED = 1
+GREEN = 2
+SCORE = WHITE = 3
+BLUE = 4
+MAGENTA = 5
+BAT = CYAN = 6 # bats
+BALL = YELLOW = 7
 
-SCORES = (
-'\033[2;{0}H\033[47m   \033[3;{0}H \033[40m \033[47m \033[4;{0}H \033[40m \033[47m \033[5;{0}H \033[40m \033[47m \033[6;{0}H   ',
-'\033[2;{0}H\033[40m  \033[47m \033[3;{0}H\033[40m  \033[47m \033[4;{0}H\033[40m  \033[47m \033[5;{0}H\033[40m  \033[47m \033[6;{0}H\033[40m  \033[47m ',
-'\033[2;{0}H\033[47m   \033[3;{0}H\033[40m  \033[47m \033[4;{0}H   \033[5;{0}H \033[40m  \033[6;{0}H\033[47m   ',
-'\033[2;{0}H\033[47m   \033[3;{0}H\033[40m  \033[47m \033[4;{0}H   \033[5;{0}H\033[40m  \033[47m \033[6;{0}H   ',
-'\033[2;{0}H\033[47m \033[40m \033[47m \033[3;{0}H \033[40m \033[47m \033[4;{0}H   \033[5;{0}H\033[40m  \033[47m \033[6;{0}H\033[40m  \033[47m ',
-'\033[2;{0}H\033[47m   \033[3;{0}H \033[40m  \033[4;{0}H\033[47m   \033[5;{0}H\033[40m  \033[47m \033[6;{0}H   ',
-'\033[2;{0}H\033[47m   \033[3;{0}H \033[40m  \033[4;{0}H\033[47m   \033[5;{0}H \033[40m \033[47m \033[6;{0}H   ',
-'\033[2;{0}H\033[47m   \033[3;{0}H\033[40m  \033[47m \033[4;{0}H\033[40m  \033[47m \033[5;{0}H\033[40m  \033[47m \033[6;{0}H\033[40m  \033[47m ',
-'\033[2;{0}H\033[47m   \033[3;{0}H \033[40m \033[47m \033[4;{0}H   \033[5;{0}H \033[40m \033[47m \033[6;{0}H   ',
-'\033[2;{0}H\033[47m   \033[3;{0}H \033[40m \033[47m \033[4;{0}H   \033[5;{0}H\033[40m  \033[47m \033[6;{0}H\033[40m  \033[47m ')
-
-NET = '\033[3;40H\033[47m \033[4;40H \033[7;40H \033[8;40H \033[11;40H \033[12;40H \033[15;40H \033[16;40H \033[19;40H \033[20;40H '
+COLOURS = ('\033[40m', '\033[41m', '\033[42m', '\033[47m', '\033[44m', '\033[45m', '\033[46m', '\033[43m')
 
 WIDTH = 80
 HEIGHT = 20
-
-oldTime = time()
 
 Player0Score = 0
 Player1Score = 0
@@ -36,29 +22,55 @@ Player1OldBat = 9
 Player0Bat = 9
 Player1Bat = 9
 
-def cursor(x, y):
-    write('\033[' + str(y) + ';' + str(x) + 'H')
+def bugger():
+    bugger = WIDTH * HEIGHT * [BLACK]
 
-def bat(x, y):
-    write('\033[40m')
-    for i in range(5):
-        write('\033[' + str(y + i) + ';' + str(x) + 'H ')
-    write('\033[47m')
+    bugger[WIDTH / 2 + WIDTH * 2] = NET
+    bugger[WIDTH / 2 + WIDTH * 3] = NET
+    bugger[WIDTH / 2 + WIDTH * 6] = NET
+    bugger[WIDTH / 2 + WIDTH * 7] = NET
+    bugger[WIDTH / 2 + WIDTH * 10] = NET
+    bugger[WIDTH / 2 + WIDTH * 11] = NET
+    bugger[WIDTH / 2 + WIDTH * 14] = NET
+    bugger[WIDTH / 2 + WIDTH * 15] = NET
+    bugger[WIDTH / 2 + WIDTH * 18] = NET
+    bugger[WIDTH / 2 + WIDTH * 19] = NET
+    
     for i in range(3):
-        write('\033[' + str(y + i) + ';' + str(x) + 'H ')
+        bugger[2 + WIDTH * (Player0Bat + i)] = BAT
+    for i in range(3):
+        bugger[77 + WIDTH * (Player1Bat + i)] = BAT
+    return bugger
+
+def delta():
+    delta = [[] for i in range(len(COLOURS))]
+    for i in range(WIDTH * HEIGHT):
+        if oldBugger[i] != currentBugger[i]:
+            delta[currentBugger[i]].append(i)
+    return delta
+
+def output(delta):
+    for i, colour in enumerate(delta):
+        if colour:
+            write(COLOURS[i])
+            prev = colour[0]
+            write('\033[' + str(prev / WIDTH + 1) + ';' + str(prev % WIDTH + 1) + 'H ')
+            for i in range(1, len(colour)):
+                i = colour[i]
+                if prev + 1 != i:
+                    write('\033[' + str(i / WIDTH + 1) + ';' + str(i % WIDTH + 1) + 'H')
+                write(' ')
 
 with Serial('/dev/ttyAMA0') as cereal:
     write = cereal.write
     write('\033[?25l')
-    write(BLACK)
-    write(WIDTH * HEIGHT * ' ')
-    write(NET)
-    write(SCORES[Player0Score].format(30))
-    write(SCORES[Player1Score].format(48))
+    oldBugger = WIDTH * HEIGHT * [None]
+    oldTime = time()
     while True:
         newTime = time()
         print 1/(newTime - oldTime)
-        bat(3, Player0Bat)
-        bat(77, Player1Bat)
+        currentBugger = bugger()
+        output(delta())
+        oldBugger = currentBugger
         cereal.flush()
         oldTime = newTime
