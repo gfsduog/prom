@@ -7,7 +7,7 @@ GREEN = 2
 SCORE = WHITE = 3
 BLUE = 4
 MAGENTA = 5
-BAT = CYAN = 6 # bats
+BAT = CYAN = 6
 BALL = YELLOW = 7
 
 COLOURS = ('\033[40m', '\033[41m', '\033[42m', '\033[47m', '\033[44m', '\033[45m', '\033[46m', '\033[43m')
@@ -15,31 +15,41 @@ COLOURS = ('\033[40m', '\033[41m', '\033[42m', '\033[47m', '\033[44m', '\033[45m
 WIDTH = 80
 HEIGHT = 20
 
+SCORES = (
+(WIDTH, WIDTH + 1, WIDTH + 2, WIDTH * 2, WIDTH * 2 + 2, WIDTH * 3, WIDTH * 3 + 2, WIDTH * 4, WIDTH * 4 + 2, WIDTH * 5, WIDTH * 5 + 1, WIDTH * 5 + 2),
+(WIDTH + 2, WIDTH * 2 + 2, WIDTH * 3 + 2, WIDTH * 4 + 2, WIDTH * 5 + 2),
+(WIDTH, WIDTH + 1, WIDTH + 2, WIDTH * 2 + 2, WIDTH * 3, WIDTH * 3 + 1, WIDTH * 3 + 2, WIDTH * 4, WIDTH * 5, WIDTH * 5 + 1, WIDTH * 5 + 2),
+(WIDTH, WIDTH + 1, WIDTH + 2, WIDTH * 2 + 2, WIDTH * 3, WIDTH * 3 + 1, WIDTH * 3 + 2, WIDTH * 4 + 2, WIDTH * 5, WIDTH * 5 + 1, WIDTH * 5 + 2),
+(WIDTH, WIDTH + 2, WIDTH * 2, WIDTH * 2 + 2, WIDTH * 3, WIDTH * 3 + 1, WIDTH * 3 + 2, WIDTH * 4 + 2, WIDTH * 5 + 2),
+(WIDTH, WIDTH + 1, WIDTH + 2, WIDTH * 2, WIDTH * 3, WIDTH * 3 + 1, WIDTH * 3 + 2, WIDTH * 4 + 2, WIDTH * 5, WIDTH * 5 + 1, WIDTH * 5 + 2),
+(WIDTH, WIDTH + 1, WIDTH + 2, WIDTH * 2, WIDTH * 3, WIDTH * 3 + 1, WIDTH * 3 + 2, WIDTH * 4, WIDTH * 4 + 2, WIDTH * 5, WIDTH * 5 + 1, WIDTH * 5 + 2),
+(WIDTH, WIDTH + 1, WIDTH + 2, WIDTH * 2 + 2, WIDTH * 3 + 2, WIDTH * 4 + 2, WIDTH * 5 + 2),
+(WIDTH, WIDTH + 1, WIDTH + 2, WIDTH * 2, WIDTH * 2 + 2, WIDTH * 3, WIDTH * 3 + 1, WIDTH * 3 + 2, WIDTH * 4, WIDTH * 4 + 2, WIDTH * 5, WIDTH * 5 + 1, WIDTH * 5 + 2),
+(WIDTH, WIDTH + 1, WIDTH + 2, WIDTH * 2, WIDTH * 2 + 2, WIDTH * 3, WIDTH * 3 + 1, WIDTH * 3 + 2, WIDTH * 4 + 2, WIDTH * 5 + 2),
+)
+
 Player0Score = 0
 Player1Score = 0
-Player0OldBat = 9
-Player1OldBat = 9
-Player0Bat = 9
-Player1Bat = 9
+Player0Bat = 0
+Player1Bat = 0
 
 def bugger():
     bugger = WIDTH * HEIGHT * [BLACK]
 
-    bugger[WIDTH / 2 + WIDTH * 2] = NET
-    bugger[WIDTH / 2 + WIDTH * 3] = NET
-    bugger[WIDTH / 2 + WIDTH * 6] = NET
-    bugger[WIDTH / 2 + WIDTH * 7] = NET
-    bugger[WIDTH / 2 + WIDTH * 10] = NET
-    bugger[WIDTH / 2 + WIDTH * 11] = NET
-    bugger[WIDTH / 2 + WIDTH * 14] = NET
-    bugger[WIDTH / 2 + WIDTH * 15] = NET
-    bugger[WIDTH / 2 + WIDTH * 18] = NET
-    bugger[WIDTH / 2 + WIDTH * 19] = NET
+    for i in range(2, HEIGHT, 4):
+        bugger[WIDTH / 2 + WIDTH * i] = NET
+        bugger[WIDTH / 2 + WIDTH * (i + 1)] = NET
     
+    for i in SCORES[Player0Score]:
+        bugger[WIDTH / 2 - 10 + i] = SCORE
+
+    for i in SCORES[Player1Score]:
+        bugger[WIDTH / 2 + 8 + i] = SCORE
+
     for i in range(3):
         bugger[2 + WIDTH * (Player0Bat + i)] = BAT
     for i in range(3):
-        bugger[77 + WIDTH * (Player1Bat + i)] = BAT
+        bugger[WIDTH - 3 + WIDTH * (Player1Bat + i)] = BAT
     return bugger
 
 def delta():
@@ -68,7 +78,7 @@ with Serial('/dev/ttyAMA0') as cereal:
     oldTime = time()
     while True:
         newTime = time()
-        print 1/(newTime - oldTime)
+        print 1 / (newTime - oldTime)
         currentBugger = bugger()
         output(delta())
         oldBugger = currentBugger
