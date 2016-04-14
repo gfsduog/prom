@@ -13,7 +13,7 @@ BALL = YELLOW = 7
 COLOURS = ('\033[40m', '\033[41m', '\033[42m', '\033[47m', '\033[44m', '\033[45m', '\033[46m', '\033[43m')
 
 WIDTH = 80
-HEIGHT = 20
+HEIGHT = 40
 
 SCORES = (
 (WIDTH, WIDTH + 1, WIDTH + 2, WIDTH * 2, WIDTH * 2 + 2, WIDTH * 3, WIDTH * 3 + 2, WIDTH * 4, WIDTH * 4 + 2, WIDTH * 5, WIDTH * 5 + 1, WIDTH * 5 + 2),
@@ -42,24 +42,21 @@ def bugger():
     
     for i in SCORES[Player0Score]:
         bugger[WIDTH / 2 - 10 + i] = SCORE
-
     for i in SCORES[Player1Score]:
         bugger[WIDTH / 2 + 8 + i] = SCORE
 
-    for i in range(3):
+    for i in range(6):
         bugger[2 + WIDTH * (Player0Bat + i)] = BAT
-    for i in range(3):
+    for i in range(6):
         bugger[WIDTH - 3 + WIDTH * (Player1Bat + i)] = BAT
+
     return bugger
 
-def delta():
+def output():
     delta = [[] for i in range(len(COLOURS))]
     for i in range(WIDTH * HEIGHT):
         if oldBugger[i] != currentBugger[i]:
             delta[currentBugger[i]].append(i)
-    return delta
-
-def output(delta):
     for i, colour in enumerate(delta):
         if colour:
             write(COLOURS[i])
@@ -71,7 +68,7 @@ def output(delta):
                     write('\033[' + str(i / WIDTH + 1) + ';' + str(i % WIDTH + 1) + 'H')
                 write(' ')
 
-with Serial('/dev/ttyAMA0') as cereal:
+with Serial('/dev/ttyAMA0', 115200) as cereal:
     write = cereal.write
     write('\033[?25l')
     oldBugger = WIDTH * HEIGHT * [None]
@@ -80,7 +77,8 @@ with Serial('/dev/ttyAMA0') as cereal:
         newTime = time()
         print 1 / (newTime - oldTime)
         currentBugger = bugger()
-        output(delta())
+        output()
         oldBugger = currentBugger
+        Player1Bat = Player0Bat = (Player0Bat + 6) % 36
         cereal.flush()
         oldTime = newTime
