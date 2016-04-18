@@ -1,4 +1,5 @@
 from serial import Serial
+from smbus import SMBus
 from time import time
 
 BLACK = 0
@@ -32,6 +33,10 @@ Player0Score = 0
 Player1Score = 0
 Player0Bat = 0
 Player1Bat = 0
+BallX = WIDTH/2
+BallY = HEIGHT/2
+BallXSpeed = 1
+BallYSpeed = 1
 
 def bugger():
     bugger = WIDTH * HEIGHT * [BLACK]
@@ -45,9 +50,9 @@ def bugger():
     for i in SCORES[Player1Score]:
         bugger[WIDTH / 2 + 8 + i] = SCORE
 
-    for i in range(6):
+    for i in range(3):
         bugger[2 + WIDTH * (Player0Bat + i)] = BAT
-    for i in range(6):
+    for i in range(3):
         bugger[WIDTH - 3 + WIDTH * (Player1Bat + i)] = BAT
 
     return bugger
@@ -69,6 +74,7 @@ def output():
                 write(' ')
 
 with Serial('/dev/ttyAMA0', 115200) as cereal:
+    adc = SMBus(1)
     write = cereal.write
     write('\033[?25l')
     oldBugger = WIDTH * HEIGHT * [None]
@@ -76,9 +82,14 @@ with Serial('/dev/ttyAMA0', 115200) as cereal:
     while True:
         newTime = time()
         print 1 / (newTime - oldTime)
+        adc.write_byte(33, 128)
+        knob = adc.read_word_data(33, 0)
+        Player0Bat = int(round(((((knob & 15) << 8) | (knob >> 8)) / 4096.) * (HEIGHT - 3)))
+        adc.write_byte(33, 0x40)
+        knob = adc.read_word_data(33, 0)
+        Player1Bat = int(round(((((knob & 15) << 8) | (knob >> 8)) / 4096.) * (HEIGHT - 3)))
         currentBugger = bugger()
         output()
         oldBugger = currentBugger
-        Player1Bat = Player0Bat = (Player0Bat + 6) % 36
         cereal.flush()
         oldTime = newTime
