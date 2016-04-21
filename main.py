@@ -84,17 +84,17 @@ with Serial('/dev/ttyAMA0', 115200) as cereal:
     adc = SMBus(1)
     write = cereal.write
     write('\033[?25l')
+    gpio.setwarnings(False)
     gpio.setmode(gpio.BCM)
-    gpio.setup(7, gpio.IN, gpio.PUD_UP)
     gpio.setup(8, gpio.IN, gpio.PUD_UP)
     gpio.setup(9, gpio.IN, gpio.PUD_UP)
     gpio.setup(10, gpio.IN, gpio.PUD_UP)
-    gpio.setwarnings(False)
+    gpio.setup(11, gpio.IN, gpio.PUD_UP)
     oldBugger = WIDTH * HEIGHT * [None]
     oldTime = time()
-    while True:
+    while 1:
         newTime = time()
-        adc.write_byte(33, 64)
+        adc.write_byte(33, 128)
         knob = adc.read_word_data(33, 0)
         Player0Bat = HEIGHT - int(round(((knob & 15) << 8 | knob >> 8) * (HEIGHT - Player0Height) / 4096.)) - Player0Height
         adc.write_byte(33, 16)
@@ -102,26 +102,26 @@ with Serial('/dev/ttyAMA0', 115200) as cereal:
         Player1Bat = HEIGHT - int(round(((knob & 15) << 8 | knob >> 8) * (HEIGHT - Player1Height) / 4096.)) - Player1Height
         if Serving:
             if ServeCount < 5:
-                BallY = Player0Bat+(Player0Height//2)
+                BallY = Player0Bat + Player0Height / 2
                 BallX = 3
             else:
-                BallY = Player1Bat+(Player1Height//2)
+                BallY = Player1Bat + Player1Height / 2
                 BallX = WIDTH - 4
+            Serving = gpio.input(10) and ServeCount < 5 or gpio.input(11) and ServeCount >= 5
         else:
             BallX += BallXSpeed
             BallY += BallYSpeed
             if BallX == 0 or BallX == WIDTH - 1:
-                ServeCount = (ServeCount+1)%10
                 Serving = True
+                ServeCount = (ServeCount + 1) % 10
                 if BallX == 0: Player1Score += 1
                 else: Player0Score += 1
                 if ServeCount < 5: BallXSpeed = 1
                 else: BallXSpeed = -1
             if BallY == 0 or BallY == HEIGHT - 1: BallYSpeed = -BallYSpeed
-            if BallX == 3 and BallY in range(Player0Bat, Player0Bat + Player0Height): BallXSpeed = -BallXSpeed
-            if BallX == WIDTH-4 and BallY in range(Player1Bat, Player1Bat + Player1Height): BallXSpeed = -BallXSpeed
-        if (not gpio.input(10) and ServeCount < 5) or (not gpio.input(9) and ServeCount >= 5):
-            Serving = False
+            if BallX == 2 and 0 < BallY - Player0Bat < Player0Height or BallX == WIDTH - 3 and 0 < BallY - Player1Bat < Player1Height:
+                BallXSpeed = -BallXSpeed
+                BallX += BallXSpeed
         currentBugger = bugger()
         output()
         oldBugger = currentBugger
