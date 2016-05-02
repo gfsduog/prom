@@ -1,8 +1,9 @@
 from serial import Serial
 from smbus import SMBus
 import RPi.GPIO as gpio
-from time import time
+from time import time, sleep
 from random import uniform
+from PyGlow import PyGlow
 
 BLACK = 0
 NET = RED = 1
@@ -16,6 +17,121 @@ BALL = YELLOW = 7
 LEDS = (5, 6, 12, 13, 16, 19, 20, 26)
 
 COLOURS = ('\033[40m', '\033[41m', '\033[42m', '\033[47m', '\033[44m', '\033[45m', '\033[46m', '\033[43m')
+
+N_GS = 103.8
+N_A = 110.
+N_B = 123.5
+N_C = 130.8
+N_D = 146.8
+N_E = 164.8
+N_F = 174.6
+N_G = 196.
+N_GSH = 207.7
+N_AH = 220.
+N_R = 1.
+
+SONG_1_BPM = 144.
+c = 1/(SONG_1_BPM/60)
+SONG =   ((N_E,c),    # 1
+          (N_B,c/2),
+          (N_C,c/2),
+          (N_D,c),
+          (N_C,c/2),
+          (N_B,c/2),
+          (N_A,c),    # 2
+          (N_A,c/2),
+          (N_C,c/2),
+          (N_E,c),
+          (N_D,c/2),
+          (N_C,c/2),
+          (N_B,c*1.5),# 3
+          (N_C,c/2),
+          (N_D,c),
+          (N_E,c),
+          (N_C,c),    # 4
+          (N_A,c),
+          (N_A,c/2),
+          (N_A,c/2),
+          (N_B,c/2),
+          (N_C,c/2),
+          (N_D,c*1.5), # 5
+          (N_F,c/2),
+          (N_AH,c),
+          (N_G,c/2),
+          (N_F,c/2),
+          (N_E,c*1.5), # 6
+          (N_C,c/2),
+          (N_E,c),
+          (N_D,c/2),
+          (N_C,c/2),
+          (N_B,c),    #7
+          (N_B,c/2),
+          (N_C,c/2),
+          (N_D,c),
+          (N_E,c),
+          (N_C,c),    # 8
+          (N_A,c),
+          (N_A,c),
+          (N_R,c),
+          (N_E,c),    # 1
+          (N_B,c/2),
+          (N_C,c/2),
+          (N_D,c),
+          (N_C,c/2),
+          (N_B,c/2),
+          (N_A,c),    # 2
+          (N_A,c/2),
+          (N_C,c/2),
+          (N_E,c),
+          (N_D,c/2),
+          (N_C,c/2),
+          (N_B,c*1.5),# 3
+          (N_C,c/2),
+          (N_D,c),
+          (N_E,c),
+          (N_C,c),    # 4
+          (N_A,c),
+          (N_A,c/2),
+          (N_A,c/2),
+          (N_B,c/2),
+          (N_C,c/2),
+          (N_D,c*1.5), # 5
+          (N_F,c/2),
+          (N_AH,c),
+          (N_G,c/2),
+          (N_F,c/2),
+          (N_E,c*1.5), # 6
+          (N_C,c/2),
+          (N_E,c),
+          (N_D,c/2),
+          (N_C,c/2),
+          (N_B,c),    #7
+          (N_B,c/2),
+          (N_C,c/2),
+          (N_D,c),
+          (N_E,c),
+          (N_C,c),    # 8
+          (N_A,c),
+          (N_A,c),
+          (N_R,c),
+          (N_E,c*2), # 9
+          (N_C,c*2),
+          (N_D,c*2), # 10
+          (N_B,c*2),
+          (N_C,c*2), # 11
+          (N_A,c*2),
+          (N_GS,c*2), # 12
+          (N_B,c),
+          (N_R,c),
+          (N_E,c*2), # 13
+          (N_C,c*2),
+          (N_D,c*2), # 14
+          (N_B,c*2),
+          (N_C,c), # 15
+          (N_E,c),
+          (N_AH,c*2),
+          (N_GSH,c*2), # 17
+          (N_R,c*2))
 
 WIDTH = 80
 HEIGHT = 40
@@ -49,7 +165,6 @@ Player0SizeCounter = 15
 Player0Megabats = 2
 Player1SizeCounter = 15
 Player1Megabats = 2
-
 
 def bugger():
     bugger = WIDTH * HEIGHT * [BLACK]
@@ -99,6 +214,8 @@ def megabat(port):
         Player1Megabats -= 1
         Player1SizeCounter = 0
 
+glow = PyGlow()
+
 with Serial('/dev/ttyAMA0', 115200) as cereal:
     adc = SMBus(1)
     write = cereal.write
@@ -111,19 +228,38 @@ with Serial('/dev/ttyAMA0', 115200) as cereal:
     gpio.add_event_detect(9, gpio.FALLING, megabat, 15000)
     gpio.setup(10, gpio.IN, gpio.PUD_UP)
     gpio.setup(11, gpio.IN, gpio.PUD_UP)
+    gpio.setup(17, gpio.OUT)
+    gpio.setup(18, gpio.OUT)
+    # start music
+    p = gpio.PWM(18,1)
+    p.start(50)
+    Note = 0
+    NoteStartTime = time()
+    p.ChangeFrequency(1)
     for led in LEDS: gpio.setup(led, gpio.OUT)
     oldBugger = WIDTH * HEIGHT * [None]
     oldTime = time()
     counter = 0
+    sorry = True
     while 1:
         newTime = time()
         counter += newTime - oldTime
+        # music
+        if time() - NoteStartTime > SONG[Note][1]:
+            Note = (Note + 1) % len(SONG)
+            NoteStartTime = time()
+            p.ChangeFrequency(SONG[Note][0])
         adc.write_byte(33, 128)
         knob = adc.read_word_data(33, 0)
-        Player0Bat = HEIGHT - int(round(((knob & 15) << 8 | knob >> 8) * (HEIGHT - Player0Height) / 4096.)) - Player0Height
-        adc.write_byte(33, 16)
-        knob = adc.read_word_data(33, 0)
-        Player1Bat = HEIGHT - int(round(((knob & 15) << 8 | knob >> 8) * (HEIGHT - Player1Height) / 4096.)) - Player1Height
+	knob = ((knob & 15) << 8 | knob >> 8) - 683
+	if knob < 0: knob = 0
+	elif knob > 2730: knob = 2730
+        Player0Bat = HEIGHT - int(round(knob * (HEIGHT - Player0Height) / 2731.)) - Player0Height
+        if sorry:
+            Player1Bat = HEIGHT - int(round(adc.read_byte_data(36, 0) * (HEIGHT - Player1Height) / 242.)) - Player1Height
+            gpio.output(17, 1)
+            gpio.output(17, 0)
+        sorry = not sorry
         if Player0SizeCounter < 15: Player0SizeCounter += newTime - oldTime
         else: Player0Height = 3
         if Player1SizeCounter < 15: Player1SizeCounter += newTime - oldTime
@@ -150,6 +286,12 @@ with Serial('/dev/ttyAMA0', 115200) as cereal:
                     if BallX == 0: Player1Score += 1
                     else: Player0Score += 1
                     BallXSpeed = 1 if ServeCount < 5 else -1
+                    for i in range(1, 19):
+                        glow.led(i, 255)
+                        sleep(.05)
+                    for i in range(18, 0, -1):
+                        glow.led(i, 0)
+                        sleep(.05)
                 if BallX == 2 and 0 <= BallY - Player0Bat < Player0Height or BallX == WIDTH - 3 and 0 <= BallY - Player1Bat < Player1Height:
                     BallXSpeed = -BallXSpeed
                     BallX += BallXSpeed
@@ -163,7 +305,6 @@ with Serial('/dev/ttyAMA0', 115200) as cereal:
                     BallY += BallYSpeed
         for led in LEDS: gpio.output(led, False)
         gpio.output(LEDS[8 * BallX / (WIDTH + 1)], True)
-        print(Player0Megabats, Player1Megabats)
         currentBugger = bugger()
         output()
         oldBugger = currentBugger
