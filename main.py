@@ -30,50 +30,12 @@ N_GSH = 207.7
 N_AH = 220.
 N_R = 1.
 
+N_BOUNCE = 500.0
+N_SCORE = 1000.0
+
 SONG_1_BPM = 144.
 c = 1/(SONG_1_BPM/60)
 SONG =   ((N_E,c),    # 1
-          (N_B,c/2),
-          (N_C,c/2),
-          (N_D,c),
-          (N_C,c/2),
-          (N_B,c/2),
-          (N_A,c),    # 2
-          (N_A,c/2),
-          (N_C,c/2),
-          (N_E,c),
-          (N_D,c/2),
-          (N_C,c/2),
-          (N_B,c*1.5),# 3
-          (N_C,c/2),
-          (N_D,c),
-          (N_E,c),
-          (N_C,c),    # 4
-          (N_A,c),
-          (N_A,c/2),
-          (N_A,c/2),
-          (N_B,c/2),
-          (N_C,c/2),
-          (N_D,c*1.5), # 5
-          (N_F,c/2),
-          (N_AH,c),
-          (N_G,c/2),
-          (N_F,c/2),
-          (N_E,c*1.5), # 6
-          (N_C,c/2),
-          (N_E,c),
-          (N_D,c/2),
-          (N_C,c/2),
-          (N_B,c),    #7
-          (N_B,c/2),
-          (N_C,c/2),
-          (N_D,c),
-          (N_E,c),
-          (N_C,c),    # 8
-          (N_A,c),
-          (N_A,c),
-          (N_R,c),
-          (N_E,c),    # 1
           (N_B,c/2),
           (N_C,c/2),
           (N_D,c),
@@ -233,9 +195,14 @@ with Serial('/dev/ttyAMA0', 115200) as cereal:
     # start music
     p = gpio.PWM(18,1)
     p.start(50)
-    Note = 0
-    NoteStartTime = time()
-    p.ChangeFrequency(1)
+    sfxStartTime = time()
+    sfxLength = .2
+    # music
+    for note in SONG:
+        p.ChangeFrequency(note[0])
+        sleep(note[1])
+    p.stop()
+    p.ChangeFrequency(N_BOUNCE)
     for led in LEDS: gpio.setup(led, gpio.OUT)
     oldBugger = WIDTH * HEIGHT * [None]
     oldTime = time()
@@ -244,19 +211,19 @@ with Serial('/dev/ttyAMA0', 115200) as cereal:
     while 1:
         newTime = time()
         counter += newTime - oldTime
-        # music
-        if time() - NoteStartTime > SONG[Note][1]:
-            Note = (Note + 1) % len(SONG)
-            NoteStartTime = time()
-            p.ChangeFrequency(SONG[Note][0])
+        if newTime - sfxStartTime > sfxLength:
+            p.stop()
         adc.write_byte(33, 128)
         knob = adc.read_word_data(33, 0)
-	knob = ((knob & 15) << 8 | knob >> 8) - 683
-	if knob < 0: knob = 0
-	elif knob > 2730: knob = 2730
+        knob = ((knob & 15) << 8 | knob >> 8) - 683
+        if knob < 0: knob = 0
+        elif knob > 2730: knob = 2730
         Player0Bat = HEIGHT - int(round(knob * (HEIGHT - Player0Height) / 2731.)) - Player0Height
         if sorry:
-            Player1Bat = HEIGHT - int(round(adc.read_byte_data(36, 0) * (HEIGHT - Player1Height) / 242.)) - Player1Height
+            knob = adc.read_byte_data(36,0) - 9
+            if knob < 0: knob = 0
+            elif knob > 220: knob = 220
+            Player1Bat = HEIGHT - int(round(knob * (HEIGHT - Player1Height) / 220.)) - Player1Height
             gpio.output(17, 1)
             gpio.output(17, 0)
         sorry = not sorry
@@ -281,18 +248,26 @@ with Serial('/dev/ttyAMA0', 115200) as cereal:
                 BallX += BallXSpeed
                 BallY += BallYSpeed
                 if BallX == 0 or BallX == WIDTH - 1:
+                    p.ChangeFrequency(N_SCORE)
+                    p.start(50)                    
                     Serving = True
                     ServeCount = (ServeCount + 1) % 10
                     if BallX == 0: Player1Score += 1
                     else: Player0Score += 1
+
                     BallXSpeed = 1 if ServeCount < 5 else -1
                     for i in range(1, 19):
                         glow.led(i, 255)
                         sleep(.05)
+                    p.ChangeFrequency(N_SCORE+200)
                     for i in range(18, 0, -1):
                         glow.led(i, 0)
                         sleep(.05)
                 if BallX == 2 and 0 <= BallY - Player0Bat < Player0Height or BallX == WIDTH - 3 and 0 <= BallY - Player1Bat < Player1Height:
+                    N_BOUNCE = abs(N_BOUNCE - 1500)
+                    p.ChangeFrequency(N_BOUNCE)
+                    p.start(50)
+                    sfxStartTime = time()
                     BallXSpeed = -BallXSpeed
                     BallX += BallXSpeed
                     if BallX == 3:
@@ -304,9 +279,12 @@ with Serial('/dev/ttyAMA0', 115200) as cereal:
                     BallYSpeed = -BallYSpeed
                     BallY += BallYSpeed
         for led in LEDS: gpio.output(led, False)
+        if 10 in (Player0Score, Player1Score): break
         gpio.output(LEDS[8 * BallX / (WIDTH + 1)], True)
         currentBugger = bugger()
         output()
         oldBugger = currentBugger
         cereal.flush()
         oldTime = newTime
+if Player0Score == 10: print 'Player 1 Wins!!!'
+else: print 'Player 2 Wins!!!'
